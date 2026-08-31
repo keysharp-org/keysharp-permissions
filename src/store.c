@@ -169,9 +169,9 @@ int ksp_store_create(ksp_store **output, const ksp_store_config *config)
                   config->runtime_directory) == 0
         || config->owner_uid == KSP_UID_ANY
         || config->read_scopes == 0u
-        || (config->read_scopes & ~KSP_SCOPE_ALL) != 0u
+        || (config->read_scopes & ~(uint32_t)KSP_SCOPE_ALL) != 0u
         || config->write_scopes == 0u
-        || (config->write_scopes & ~KSP_SCOPE_ALL) != 0u
+        || (config->write_scopes & ~(uint32_t)KSP_SCOPE_ALL) != 0u
         || (config->write_scopes & ~config->read_scopes) != 0u
         || config->max_records == 0u
         || config->max_records > KSP_MAX_CONFIGURED_RECORDS) {
@@ -366,7 +366,7 @@ static int parse_scope_hex(const char *text, uint32_t *scope)
         value = (value << 4u) | nibble;
     }
     if (value == 0u || (value & (value - 1u)) != 0u
-        || (value & ~KSP_SCOPE_ALL) != 0u)
+        || (value & ~(uint32_t)KSP_SCOPE_ALL) != 0u)
         return -1;
     *scope = value;
     return 0;
@@ -418,7 +418,7 @@ static int marker_path(const ksp_store *store, uid_t uid,
 {
     if (store == NULL || !ksp_hash_is_canonical(app_hash)
         || scope == 0u || (scope & (scope - 1u)) != 0u
-        || (scope & ~KSP_SCOPE_ALL) != 0u) {
+        || (scope & ~(uint32_t)KSP_SCOPE_ALL) != 0u) {
         errno = EINVAL;
         return -1;
     }

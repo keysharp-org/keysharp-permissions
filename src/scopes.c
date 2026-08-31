@@ -62,7 +62,7 @@ int ksp_scopes_format(uint32_t scopes, bool display_names,
     size_t used = 0u;
 
     if (destination == NULL || capacity == 0u || scopes == 0u
-        || (scopes & ~KSP_SCOPE_ALL) != 0u) {
+        || (scopes & ~(uint32_t)KSP_SCOPE_ALL) != 0u) {
         errno = EINVAL;
         return -1;
     }

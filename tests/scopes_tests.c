@@ -5,12 +5,13 @@
 #include <inttypes.h>
 #include <string.h>
 
+#define TEST_HASH "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
 int ksp_test_scopes(void)
 {
-    static const char lower_hash[] =
-        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    static const char lower_hash[] = TEST_HASH;
     static const char valid_marker[] =
-        "grant-1000-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-00000001.grant";
+        "grant-1000-" TEST_HASH "-00000001.grant";
     char formatted[256];
     char hash[KSP_HASH_HEX_LENGTH + 1u];
     char changed[sizeof(valid_marker)];

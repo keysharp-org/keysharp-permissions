@@ -49,7 +49,7 @@ static bool valid_config(const ksp_polkit_config *config, uint32_t scopes)
         && valid_identifier(config->scope_detail_key)
         && valid_identifier(config->scope_names_detail_key)
         && config->allowed_scopes != 0u
-        && (config->allowed_scopes & ~KSP_SCOPE_ALL) == 0u
+        && (config->allowed_scopes & ~(uint32_t)KSP_SCOPE_ALL) == 0u
         && scopes != 0u && (scopes & ~config->allowed_scopes) == 0u
         && config->timeout_seconds != 0u
         && config->timeout_seconds <= KSP_POLKIT_MAX_TIMEOUT_SECONDS;
