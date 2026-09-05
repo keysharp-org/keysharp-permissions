@@ -77,6 +77,14 @@ Identification verifies the process UID and `/proc/<pid>/stat` start time before
 and after hashing. `ksp_identity_revalidate` repeats the complete check after an
 interactive authorization.
 
+`ksp_identity_revalidate_cached` checks the process and the executable inode,
+size, timestamps, and resolved path without rehashing unchanged bytes. It falls
+back to complete revalidation when the fingerprint changes. Capture and the
+interactive grant path still compute the complete identity; cached checks let
+long-lived connections detect executable changes without file-sized work on
+every operation. Executable identity does not authenticate loaded libraries,
+managed assemblies, scripts, or changes to a process's address space.
+
 ## Store contract
 
 The default persistent directory is `/var/lib/keysharp-permissions/v1`, owned by

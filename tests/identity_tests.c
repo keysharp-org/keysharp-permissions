@@ -33,6 +33,14 @@ int ksp_test_identity(void)
     CHECK(ksp_hash_is_canonical(identity.hash));
     CHECK(ksp_identity_revalidate(&identity, &verified) == 0);
     CHECK(strcmp(identity.hash, verified.hash) == 0);
+    CHECK(identity.executable_inode != 0u);
+    CHECK(ksp_identity_revalidate_cached(&identity, &verified) == 0);
+    CHECK(strcmp(identity.hash, verified.hash) == 0);
+    identity.executable_inode = 0u;
+    CHECK(ksp_identity_revalidate_cached(&identity, &verified) == 0);
+    CHECK(verified.executable_inode != 0u);
+    verified.start_time++;
+    CHECK(ksp_identity_revalidate_cached(&verified, NULL) != 0);
     CHECK(ksp_identity_identify(getpid(), getuid(), start_time + 1u,
                                 &verified) != 0);
     return 0;

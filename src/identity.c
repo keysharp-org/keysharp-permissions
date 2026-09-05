@@ -380,6 +380,30 @@ static int read_executable_path(pid_t pid, char *path, size_t capacity)
     return 0;
 }
 
+static void capture_fingerprint(ksp_identity *identity, const struct stat *info)
+{
+    identity->executable_device = (uint64_t)info->st_dev;
+    identity->executable_inode = (uint64_t)info->st_ino;
+    identity->executable_size = (int64_t)info->st_size;
+    identity->executable_mtime_seconds = (int64_t)info->st_mtim.tv_sec;
+    identity->executable_mtime_nanoseconds = info->st_mtim.tv_nsec;
+    identity->executable_ctime_seconds = (int64_t)info->st_ctim.tv_sec;
+    identity->executable_ctime_nanoseconds = info->st_ctim.tv_nsec;
+}
+
+static bool fingerprint_matches(const ksp_identity *identity,
+                                 const struct stat *info)
+{
+    return identity->executable_inode != 0u && S_ISREG(info->st_mode)
+        && identity->executable_device == (uint64_t)info->st_dev
+        && identity->executable_inode == (uint64_t)info->st_ino
+        && identity->executable_size == (int64_t)info->st_size
+        && identity->executable_mtime_seconds == (int64_t)info->st_mtim.tv_sec
+        && identity->executable_mtime_nanoseconds == info->st_mtim.tv_nsec
+        && identity->executable_ctime_seconds == (int64_t)info->st_ctim.tv_sec
+        && identity->executable_ctime_nanoseconds == info->st_ctim.tv_nsec;
+}
+
 int ksp_identity_identify(pid_t pid, uid_t expected_uid,
                           uint64_t expected_start_time,
                           ksp_identity *identity)
@@ -439,6 +463,7 @@ int ksp_identity_identify(pid_t pid, uid_t expected_uid,
     identity->uid = expected_uid;
     identity->pid = pid;
     identity->start_time = expected_start_time;
+    capture_fingerprint(identity, &current_executable_info);
     result = 0;
 
 done:
@@ -481,5 +506,44 @@ int ksp_identity_revalidate(const ksp_identity *expected,
     }
     if (verified != NULL)
         *verified = local;
+    return 0;
+}
+
+int ksp_identity_revalidate_cached(const ksp_identity *expected,
+                                   ksp_identity *verified)
+{
+    char path[64];
+    char executable[KSP_PATH_CAPACITY];
+    struct stat info;
+    uint64_t start_time;
+    uid_t owner;
+
+    if (expected == NULL || expected->pid <= 0 || expected->start_time == 0u
+        || !ksp_hash_is_canonical(expected->hash)) {
+        errno = EINVAL;
+        return -1;
+    }
+    if (process_owner(expected->pid, &owner) != 0 || owner != expected->uid
+        || ksp_process_start_time(expected->pid, &start_time) != 0
+        || start_time != expected->start_time
+        || snprintf(path, sizeof(path), "/proc/%ld/exe", (long)expected->pid) <= 0
+        || stat(path, &info) != 0
+        || read_executable_path(expected->pid, executable,
+                                 sizeof(executable)) != 0) {
+        errno = ESRCH;
+        return -1;
+    }
+    if (!fingerprint_matches(expected, &info)
+        || strcmp(expected->executable, executable) != 0)
+        return ksp_identity_revalidate(expected, verified);
+    if (process_owner(expected->pid, &owner) != 0 || owner != expected->uid
+        || ksp_process_start_time(expected->pid, &start_time) != 0
+        || start_time != expected->start_time || stat(path, &info) != 0
+        || !fingerprint_matches(expected, &info)) {
+        errno = ESTALE;
+        return -1;
+    }
+    if (verified != NULL)
+        *verified = *expected;
     return 0;
 }

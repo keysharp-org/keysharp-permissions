@@ -44,6 +44,13 @@ typedef struct ksp_identity {
     uint64_t start_time;
     char executable[KSP_PATH_CAPACITY];
     char hash[KSP_HASH_HEX_LENGTH + 1u];
+    uint64_t executable_device;
+    uint64_t executable_inode;
+    int64_t executable_size;
+    int64_t executable_mtime_seconds;
+    int64_t executable_mtime_nanoseconds;
+    int64_t executable_ctime_seconds;
+    int64_t executable_ctime_nanoseconds;
 } ksp_identity;
 
 int ksp_process_start_time(pid_t pid, uint64_t *start_time);
@@ -54,6 +61,10 @@ int ksp_identity_capture(pid_t pid, uid_t expected_uid,
                          ksp_identity *identity);
 int ksp_identity_revalidate(const ksp_identity *expected,
                             ksp_identity *verified);
+/* Reuses the captured digest only while process and executable metadata agree.
+ * Interactive authorization still uses the complete revalidation above. */
+int ksp_identity_revalidate_cached(const ksp_identity *expected,
+                                   ksp_identity *verified);
 int ksp_identity_hash_path(const char *absolute_path,
                            char hash[KSP_HASH_HEX_LENGTH + 1u]);
 int ksp_identity_hash_content(
@@ -110,6 +121,11 @@ int ksp_store_grant_if_generation(ksp_store *store,
                                   const ksp_identity *identity,
                                   uint32_t scopes,
                                   uint64_t expected_generation);
+/* Checks cancellation after the store lock and before each marker commit.
+ * Cancellation returns -1 with ECANCELED. Already committed scopes remain. */
+int ksp_store_grant_if_generation_cancelled(ksp_store *store,
+    const ksp_identity *identity, uint32_t scopes, uint64_t expected_generation,
+    ksp_cancel_fn cancelled, void *user_data);
 int ksp_store_revoke(ksp_store *store, uid_t uid, const char *app_hash,
                      uint32_t scopes);
 int ksp_store_revoke_uid(ksp_store *store, uid_t uid, uint32_t scopes);

@@ -566,7 +566,8 @@ static int sync_descriptor(int descriptor)
 
 static int write_marker_locked(const ksp_store *store,
                                const ksp_identity *identity,
-                               uint32_t scope)
+                               uint32_t scope, ksp_cancel_fn cancelled,
+                               void *user_data)
 {
     char final_path[KSP_PATH_CAPACITY];
     char temporary[KSP_PATH_CAPACITY];
@@ -618,6 +619,10 @@ static int write_marker_locked(const ksp_store *store,
         goto done;
     }
     descriptor = -1;
+    if (cancelled != NULL && cancelled(user_data)) {
+        errno = ECANCELED;
+        goto done;
+    }
     if (rename(temporary, final_path) != 0
         || ksp_internal_fsync_directory(store->persistent_directory) != 0)
         goto done;
@@ -821,6 +826,14 @@ int ksp_store_grant_if_generation(ksp_store *store,
                                   uint32_t scopes,
                                   uint64_t expected_generation)
 {
+    return ksp_store_grant_if_generation_cancelled(store, identity, scopes,
+        expected_generation, NULL, NULL);
+}
+
+int ksp_store_grant_if_generation_cancelled(ksp_store *store,
+    const ksp_identity *identity, uint32_t scopes, uint64_t expected_generation,
+    ksp_cancel_fn cancelled, void *user_data)
+{
     uint64_t generation;
     size_t executable_length;
     int lock;
@@ -840,6 +853,10 @@ int ksp_store_grant_if_generation(ksp_store *store,
     lock = lock_store(store, LOCK_EX);
     if (lock < 0)
         return -1;
+    if (cancelled != NULL && cancelled(user_data)) {
+        errno = ECANCELED;
+        goto done;
+    }
     if (ksp_store_generation(store, identity->uid, &generation) != 0)
         goto done;
     if (generation != expected_generation) {
@@ -849,7 +866,7 @@ int ksp_store_grant_if_generation(ksp_store *store,
     for (uint32_t bit = 1u; bit <= KSP_SCOPE_CLIPBOARD_MONITORING;
          bit <<= 1u) {
         if ((scopes & bit) != 0u
-            && write_marker_locked(store, identity, bit) != 0)
+            && write_marker_locked(store, identity, bit, cancelled, user_data) != 0)
             goto done;
     }
     result = 0;

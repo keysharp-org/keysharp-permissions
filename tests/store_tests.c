@@ -189,6 +189,13 @@ int ksp_test_store(void)
 
     CHECK(ksp_store_generation(input, getuid(), &generation) == 0);
     CHECK(generation == 0u);
+    cancellation_state grant_cancellation = { 0 };
+    CHECK(ksp_store_grant_if_generation_cancelled(input, &second,
+        KSP_SCOPE_INPUT_MONITORING, generation, cancel_on_second_check,
+        &grant_cancellation) == -1);
+    CHECK(errno == ECANCELED && grant_cancellation.calls == 2u);
+    CHECK(ksp_store_check(input, getuid(), second.hash,
+        KSP_SCOPE_INPUT_MONITORING, &allowed) == 0 && allowed == 0u);
     CHECK(ksp_store_grant_if_generation(input, &first,
                                         KSP_SCOPE_INPUT_MONITORING,
                                         generation) == 0);
