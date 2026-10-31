@@ -153,6 +153,7 @@ typedef enum ksp_polkit_result {
     KSP_POLKIT_UNAVAILABLE = 2,
     KSP_POLKIT_CANCELLED = 3,
     KSP_POLKIT_IDENTITY_CHANGED = 4,
+    KSP_POLKIT_NO_AGENT = 5,
 } ksp_polkit_result;
 
 typedef struct ksp_polkit_config {

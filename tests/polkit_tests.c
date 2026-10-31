@@ -33,6 +33,7 @@ int ksp_test_polkit(void)
     CHECK(ksp_identity_capture(getpid(), getuid(), &identity) == 0);
     CHECK(ksp_polkit_result_from_exit(0) == KSP_POLKIT_GRANTED);
     CHECK(ksp_polkit_result_from_exit(1) == KSP_POLKIT_DENIED);
+    CHECK(ksp_polkit_result_from_exit(2) == KSP_POLKIT_NO_AGENT);
     CHECK(ksp_polkit_result_from_exit(3) == KSP_POLKIT_DENIED);
     CHECK(ksp_polkit_result_from_exit(127) == KSP_POLKIT_UNAVAILABLE);
     CHECK(ksp_polkit_authorize(&config, &identity,
@@ -44,6 +45,16 @@ int ksp_test_polkit(void)
                                KSP_SCOPE_INPUT_MONITORING
                                    | KSP_SCOPE_INPUT_CONTROL,
                                NULL, NULL) == KSP_POLKIT_DENIED);
+    config.action_id = "org.test.no-agent";
+    CHECK(ksp_polkit_authorize(&config, &identity,
+                               KSP_SCOPE_INPUT_MONITORING
+                                   | KSP_SCOPE_INPUT_CONTROL,
+                               NULL, NULL) == KSP_POLKIT_NO_AGENT);
+    config.action_id = "org.test.unavailable";
+    CHECK(ksp_polkit_authorize(&config, &identity,
+                               KSP_SCOPE_INPUT_MONITORING
+                                   | KSP_SCOPE_INPUT_CONTROL,
+                               NULL, NULL) == KSP_POLKIT_UNAVAILABLE);
     CHECK(ksp_polkit_authorize(&config, &identity,
                                KSP_SCOPE_INPUT_MONITORING
                                    | KSP_SCOPE_INPUT_CONTROL,

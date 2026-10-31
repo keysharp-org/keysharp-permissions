@@ -22,7 +22,11 @@ static int pkcheck_stub(int argc, char **argv)
         || !has_argument(argc, argv, "input-monitoring,input-control")
         || !has_argument(argc, argv, "Input Monitoring, Input Control")
         || !has_argument(argc, argv, "polkit.message"))
+        return 126;
+    if (strcmp(argv[2], "org.test.no-agent") == 0)
         return 2;
+    if (strcmp(argv[2], "org.test.unavailable") == 0)
+        return 127;
     return strcmp(argv[2], "org.test.deny") == 0 ? 1 : 0;
 }
 

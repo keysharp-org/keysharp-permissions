@@ -126,6 +126,10 @@ fixed environment, an argv vector, a bounded timeout, and no shell. The caller
 supplies its action ID, detail keys, and allowed scope mask. A successful result
 is returned only after executable identity revalidation.
 
+The runner enables user interaction and reports `KSP_POLKIT_NO_AGENT` when
+`pkcheck` returns 2 (no suitable authentication agent). Callers can explain how
+to start a session agent without misreporting a user denial or service failure.
+
 ## Build and test
 
 ```sh

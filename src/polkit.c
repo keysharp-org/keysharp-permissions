@@ -132,6 +132,8 @@ ksp_polkit_result ksp_polkit_result_from_exit(int exit_code)
         return KSP_POLKIT_GRANTED;
     if (exit_code == 1 || exit_code == 3)
         return KSP_POLKIT_DENIED;
+    if (exit_code == 2)
+        return KSP_POLKIT_NO_AGENT;
     return KSP_POLKIT_UNAVAILABLE;
 }
 
