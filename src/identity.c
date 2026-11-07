@@ -460,10 +460,16 @@ int ksp_identity_identify(pid_t pid, uid_t expected_uid,
         errno = ESRCH;
         goto done;
     }
+    /* Cached revalidation trusts this fingerprint, so it must describe the
+     * bytes that were hashed rather than a file written during hashing. */
+    capture_fingerprint(identity, &executable_info);
+    if (!fingerprint_matches(identity, &current_executable_info)) {
+        errno = ESTALE;
+        goto done;
+    }
     identity->uid = expected_uid;
     identity->pid = pid;
     identity->start_time = expected_start_time;
-    capture_fingerprint(identity, &current_executable_info);
     result = 0;
 
 done:

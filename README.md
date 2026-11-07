@@ -73,9 +73,10 @@ There is no byte after `identity`.
   encode that digest as 64 lowercase ASCII hex bytes, and use those bytes as
   `identity`.
 
-Identification verifies the process UID and `/proc/<pid>/stat` start time before
-and after hashing. `ksp_identity_revalidate` repeats the complete check after an
-interactive authorization.
+Identification verifies the process UID, the `/proc/<pid>/stat` start time, and
+the executable's inode, size, and timestamps before and after hashing.
+`ksp_identity_revalidate` repeats the complete check after an interactive
+authorization.
 
 `ksp_identity_revalidate_cached` checks the process and the executable inode,
 size, timestamps, and resolved path without rehashing unchanged bytes. It falls
