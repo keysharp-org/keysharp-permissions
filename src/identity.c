@@ -2,13 +2,12 @@
 
 #include <errno.h>
 #include <fcntl.h>
-#include <linux/if_alg.h>
+#include <openssl/evp.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sys/socket.h>
 #include <sys/stat.h>
 #include <unistd.h>
 
@@ -16,53 +15,24 @@
 #define KSP_IDENTITY_KIND_SHA256 "sha256"
 
 typedef struct ksp_sha256 {
-    int algorithm_fd;
-    int operation_fd;
+    EVP_MD_CTX *context;
 } ksp_sha256;
-
-static void close_descriptor(int *descriptor)
-{
-    if (*descriptor >= 0) {
-        int saved_errno = errno;
-        close(*descriptor);
-        *descriptor = -1;
-        errno = saved_errno;
-    }
-}
 
 static int sha256_begin(ksp_sha256 *hash)
 {
-    static const struct sockaddr_alg address = {
-        .salg_family = AF_ALG,
-        .salg_type = "hash",
-        .salg_name = "sha256",
-    };
-
     if (hash == NULL) {
         errno = EINVAL;
         return -1;
     }
-    hash->algorithm_fd = -1;
-    hash->operation_fd = -1;
-    do {
-        hash->algorithm_fd = socket(AF_ALG,
-                                    SOCK_SEQPACKET | SOCK_CLOEXEC, 0);
-    } while (hash->algorithm_fd < 0 && errno == EINTR);
-    if (hash->algorithm_fd < 0)
-        return -1;
-    while (bind(hash->algorithm_fd, (const struct sockaddr *)&address,
-                sizeof(address)) != 0) {
-        if (errno == EINTR)
-            continue;
-        close_descriptor(&hash->algorithm_fd);
+    hash->context = EVP_MD_CTX_new();
+    if (hash->context == NULL) {
+        errno = ENOMEM;
         return -1;
     }
-    do {
-        hash->operation_fd = accept4(hash->algorithm_fd, NULL, NULL,
-                                     SOCK_CLOEXEC);
-    } while (hash->operation_fd < 0 && errno == EINTR);
-    if (hash->operation_fd < 0) {
-        close_descriptor(&hash->algorithm_fd);
+    if (EVP_DigestInit_ex(hash->context, EVP_sha256(), NULL) != 1) {
+        EVP_MD_CTX_free(hash->context);
+        hash->context = NULL;
+        errno = EIO;
         return -1;
     }
     return 0;
@@ -73,31 +43,22 @@ static void sha256_end(ksp_sha256 *hash)
     int saved_errno = errno;
 
     if (hash != NULL) {
-        close_descriptor(&hash->operation_fd);
-        close_descriptor(&hash->algorithm_fd);
+        EVP_MD_CTX_free(hash->context);
+        hash->context = NULL;
     }
     errno = saved_errno;
 }
 
 static int sha256_update(ksp_sha256 *hash, const void *data, size_t length)
 {
-    const unsigned char *cursor = data;
-
-    if (hash == NULL || hash->operation_fd < 0
+    if (hash == NULL || hash->context == NULL
         || (data == NULL && length != 0u)) {
         errno = EINVAL;
         return -1;
     }
-    while (length != 0u) {
-        ssize_t written = send(hash->operation_fd, cursor, length,
-                               MSG_MORE | MSG_NOSIGNAL);
-
-        if (written < 0 && errno == EINTR)
-            continue;
-        if (written <= 0)
-            return -1;
-        cursor += (size_t)written;
-        length -= (size_t)written;
+    if (EVP_DigestUpdate(hash->context, data, length) != 1) {
+        errno = EIO;
+        return -1;
     }
     return 0;
 }
@@ -107,27 +68,16 @@ static int sha256_finish(ksp_sha256 *hash,
 {
     static const char digits[] = "0123456789abcdef";
     unsigned char digest[32];
-    size_t used = 0u;
-    ssize_t status;
+    unsigned int length = 0u;
 
-    if (hash == NULL || hash->operation_fd < 0 || output == NULL) {
+    if (hash == NULL || hash->context == NULL || output == NULL) {
         errno = EINVAL;
         return -1;
     }
-    do {
-        status = send(hash->operation_fd, NULL, 0u, MSG_NOSIGNAL);
-    } while (status < 0 && errno == EINTR);
-    if (status < 0)
+    if (EVP_DigestFinal_ex(hash->context, digest, &length) != 1
+        || length != sizeof(digest)) {
+        errno = EIO;
         return -1;
-    while (used < sizeof(digest)) {
-        ssize_t count = read(hash->operation_fd, digest + used,
-                             sizeof(digest) - used);
-
-        if (count < 0 && errno == EINTR)
-            continue;
-        if (count <= 0)
-            return -1;
-        used += (size_t)count;
     }
     for (size_t index = 0u; index < sizeof(digest); index++) {
         output[index * 2u] = digits[digest[index] >> 4u];

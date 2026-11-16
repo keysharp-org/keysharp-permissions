@@ -66,6 +66,9 @@ ASCII("org.keysharp.app-identity-v1") || 00 || ASCII(kind) || 00 || identity
 
 There is no byte after `identity`.
 
+Hashing uses OpenSSL's userspace SHA-256 implementation and does not require
+the kernel's optional or restricted `AF_ALG` interface.
+
 - `kind` is `path` when the opened executable and every path ancestor are
   UID-0-owned and not group- or other-writable. `identity` is the exact absolute
   byte string from `/proc/<pid>/exe`.
@@ -132,6 +135,9 @@ The runner enables user interaction and reports `KSP_POLKIT_NO_AGENT` when
 to start a session agent without misreporting a user denial or service failure.
 
 ## Build and test
+
+Requires CMake 3.16+, a C11 compiler, and OpenSSL development files (`libssl-dev`
+on Debian/Ubuntu, `openssl-devel` on Fedora, or `openssl` on Arch Linux).
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release

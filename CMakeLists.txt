@@ -10,6 +10,8 @@ if(CMAKE_SOURCE_DIR STREQUAL PROJECT_SOURCE_DIR)
     include(CTest)
 endif()
 
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+
 add_library(keysharp-permissions STATIC
     src/identity.c
     src/polkit.c
@@ -17,6 +19,8 @@ add_library(keysharp-permissions STATIC
     src/store.c
     src/util.c)
 add_library(KeysharpPermissions::permissions ALIAS keysharp-permissions)
+
+target_link_libraries(keysharp-permissions PRIVATE OpenSSL::Crypto)
 
 target_compile_features(keysharp-permissions PUBLIC c_std_11)
 target_include_directories(keysharp-permissions

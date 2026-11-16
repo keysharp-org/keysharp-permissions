@@ -1,4 +1,5 @@
 #include "test.h"
+#include "deny_af_alg.h"
 
 #include <stdbool.h>
 #include <string.h>
@@ -36,6 +37,10 @@ int main(int argc, char **argv)
 
     if (argc > 1 && strcmp(argv[1], "--action-id") == 0)
         return pkcheck_stub(argc, argv);
+    if (ksp_test_deny_af_alg() != 0) {
+        perror("disable AF_ALG for tests");
+        return 1;
+    }
     failures += ksp_test_scopes();
     failures += ksp_test_identity();
     failures += ksp_test_store();
